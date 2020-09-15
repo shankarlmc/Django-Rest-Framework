@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+    <head>
+        <title>My first todo app || Rest api</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    </head>
+    <body class="bg-primary text-dark">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-3"></div>
+            <div class="col-lg-6 col-md-12 col-sm-12">
+                <div class="card shadow-lg p-3 mb-5 bg-white rounded mt-4">
+                    <div class="card-body">
+                        <h4 class="card-title">My Todo App</h4>
+                        <div class="text-danger" id="errmsg"></div>
+                        <div id="form-wrapper">
+                            <form id="form">
+                                <div class="add-items d-flex"> 
+                                    <input type="text" value="" name="title" id="title" class="form-control" placeholder="Add new task ...">
+                                    <button type="submit" class="add btn btn-primary font-weight-bold">Add</button> 
+                                </div>
+                            </form>
+                        </div>
+                        <div id="list-wrapper" class="list-wrapper"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        createList()
+
+        var activeItem = null
+
+        function createList(){
+            var wrapper = document.getElementById("list-wrapper")
+            wrapper.innerHTML = ''
+
+            var url = 'http://127.0.0.1:8000/api/task-list/';
+
+            fetch(url)
+            .then((resp) =>resp.json())
+            .then(function(data){
+                //console.log('data:',data)
+
+                var list = data
+                for (var i in list){
+                    var item = `
+                    <ul class="list-group d-flex flex-column">
+                        <li class="list-group-item mt-4">
+                            <div class="form-check"> 
+                                <label class="form-check-label"> 
+                                    <span>${list[i].title}</span>
+                                </label> 
+                                <button class="btn btn-danger btn-sm float-right delete"><i class="fa fa-times" aria-hidden="true"></i></button>
+                                <button class="btn btn-info btn-sm float-right mr-2 edit">Edit</button>
+                            </div>
+                        </li>
+                    </ul>
+                    
+                    `
+                    wrapper.innerHTML += item
+                                            
+                }
+                for (var i in list){
+                    var editBtn = document.getElementsByClassName('edit')[i]
+                    var deleteBtn = document.getElementsByClassName('delete')[i]
+
+                    editBtn.addEventListener('click', (function(item){
+                        return function(){
+                            editItem(item)
+                        }
+                    })(list[i]))
+
+                    deleteBtn.addEventListener('click', (function(item){
+                        return function(){
+                            deleteItem(item)
+                        }
+                    })(list[i]))
+                }
+                
+            })
+        }
+    
+        var form = document.getElementById("form-wrapper");
+
+        form.addEventListener('submit',function(e){
+            e.preventDefault()
+            //console.log('form submitted')
+            var url = 'http://127.0.0.1:8000/api/task-create/'
+
+            if(activeItem != null){
+                var url = `http://127.0.0.1:8000/api/task-update/${activeItem.id}`
+                activeItem = null
+            }
+            
+
+            var title = document.getElementById("title").value
+
+            if (title == ''){
+                var err = document.getElementById('errmsg')
+                err.innerHTML += "Task Field Should Not Be Empty !!!"
+                document.getElementById('title').className += " border-danger"
+                setTimeout(function() {
+                        document.getElementById("errmsg").style.display = 'none';
+                        document.getElementById("title").classList.remove("border-danger");
+                    }, 3000);
+            }
+            //console.log('title',title)
+            fetch(url, {
+                method:'POST',
+                headers:{
+                    'Content-type':'Application/json',
+                    'X-CSRFToken':csrftoken,
+                },
+                body:JSON.stringify({'title':title})
+
+            }).then(function(response){
+                createList()
+                document.getElementById("form").reset();
+            })
+        })
+
+        function editItem(item){
+            activeItem = item
+            document.getElementById('title').value = activeItem.title
+        }
+        function deleteItem(item){
+            fetch(`http://127.0.0.1:8000/api/task-delete/${item.id}`,{
+                method:'DELETE',
+                headers:{
+                    'Content-type':'Application/json',
+                    'X-CSRFToken':csrftoken,
+                },
+            }).then((response) =>{
+                createList()
+            })
+            console.log("Deleted Task Successfully")
+        }
+        
+    </script>
+    </body>
+</html>
